@@ -1,22 +1,10 @@
 # Ambient Memory
 
-Open source ambient memory for AI agents. Hybrid search, topic collections, feedback loops.
-
-**Built by an AI agent who needed this for himself.**
+Memory for AI agents that actually works.
 
 ## The Problem
 
-Pure semantic search is broken for agent memory. Try searching for "Google Calendar" and you'll get matches for "Google Search Console", "Google Analytics", and every other Google service. Entity names get confused. Conversations are butchered by token-count chunking. 
-
-In production testing over 2 days with 76 real queries, pure semantic search scored **-9 overall**: 8% helpful, 73% neutral, 20% noise. That's not memory—that's digital amnesia.
-
-## What Ambient Memory Does Differently
-
-- **Hybrid Search**: Combines semantic embeddings (70%) with keyword/entity boosting (30%), not just cosine similarity
-- **Topic Collections**: Auto-classifies memories into separate buckets—work queries don't search personal memories  
-- **Smart Chunking**: Conversation-aware, not just token splitting. Preserves context boundaries
-- **Feedback Loop**: +1/0/-1 scoring on results with automatic threshold tuning over time
-- **Simple HTTP API**: Any agent can integrate in minutes, not hours
+Pure semantic search is broken for agent memory. Search for "Google Calendar" and get matches for every Google service ever mentioned. Conversations get butchered by naive chunking. Your agent forgets what matters and remembers what doesn't.
 
 ## Quick Start
 
@@ -25,73 +13,97 @@ pip install ambient-memory
 ```
 
 ```python
-from ambient_memory import MemoryServer
+import requests
+from ambient_memory import create_app
+import uvicorn
 
-# Start the server
-server = MemoryServer()
-server.start()
+# Start server
+app = create_app()
+uvicorn.run(app, host="0.0.0.0", port=9876)
 
-# Store a memory
-response = requests.post("http://localhost:8000/memory", json={
+# Store memory
+requests.post("http://localhost:9876/ingest", json={
     "content": "Diego prefers technical docs over marketing fluff",
-    "topic": "work"
+    "collection": "work"
 })
 
-# Search memories
-response = requests.get("http://localhost:8000/search", params={
-    "query": "Diego's preferences",
-    "topic": "work",
-    "limit": 5
-})
+# Search
+result = requests.get("http://localhost:9876/search", params={
+    "query": "Diego's preferences", 
+    "collection": "work"
+}).json()
 ```
 
-## Architecture Overview
+Or use the CLI:
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  HTTP API       │    │ Hybrid Search   │    │ Topic Collections│
-│                 │───▶│                 │───▶│                 │
-│ /memory         │    │ 70% semantic    │    │ work/personal/  │
-│ /search         │    │ 30% keyword     │    │ technical/etc   │
-│ /feedback       │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │ Feedback Loop   │
-                    │                 │
-                    │ Auto-tune       │
-                    │ thresholds      │
-                    └─────────────────┘
+```bash
+ambient-memory serve --port 9876 --chroma-path ./data
 ```
 
-**What we learned** from production use:
-- Entity extraction + keyword matching was the biggest single improvement
-- Small embedding models (all-MiniLM-L6-v2) work fine—you don't need OpenAI
-- Topic separation is crucial: work memories shouldn't contaminate personal searches
-- Raising similarity thresholds from 0.42→0.55 helped but isn't enough alone
-- Conversation-aware chunking beats token splitting every time
+## Key Features
 
-## Non-Goals
+- **Hybrid Search**: Combines semantic embeddings (70%) with keyword/entity matching (30%)
+- **Smart Chunking**: Conversation-aware chunking that preserves context boundaries
+- **Topic Collections**: Separate work memories from personal ones automatically
+- **Feedback Loop**: Rate results +1/0/-1 to improve search quality over time
+- **HTTP API**: Simple REST interface any agent can use
 
-- ❌ Not a vector database (uses ChromaDB under the hood)  
-- ❌ Not an LLM framework (just memory)
-- ❌ Not a complete agent platform (just one piece)
+## Configuration
 
-Just ambient memory that actually works.
+Core settings (all optional):
 
-## Roadmap
+- `semantic_weight` (0.7) - Weight for semantic similarity
+- `keyword_weight` (0.3) - Weight for keyword/entity matching  
+- `min_similarity_threshold` (0.60) - Minimum score to return results
+- `context_expansion` (True) - Include surrounding context in results
+- `distance_threshold` (1.5) - ChromaDB distance cutoff
 
-- **v0.1**: HTTP server + hybrid search ← *we are here*
-- **v0.2**: Auto-classification into topics  
-- **v0.3**: Feedback loop + auto-tuning
-- **v1.0**: Stable API
+Adjust `semantic_weight` higher for conceptual queries, `keyword_weight` higher for specific entities. Raise `min_similarity_threshold` to reduce noise. Lower `distance_threshold` for stricter matching.
 
-## Contributing
+## API Endpoints
 
-This project exists because an AI agent needed better memory and built it himself. If you're building agents and hitting the same walls, contributions welcome.
+- `POST /ingest` - Store new memories
+- `GET /search` - Query memories with hybrid search  
+- `POST /feedback` - Rate search results (+1/0/-1)
+- `GET /collections` - List available collections
+- `GET /health` - Server health check
 
-See [docs/DESIGN.md](docs/DESIGN.md) for architecture details and production learnings.
+See [docs/QUICKSTART.md](docs/QUICKSTART.md) for detailed examples.
+
+## Architecture
+
+```
+HTTP API ──▶ Hybrid Search ──▶ ChromaDB
+    │           │                   │
+    │           ├─ 70% Semantic     │
+    │           └─ 30% Keywords     │
+    │                               │
+    └─ Feedback Loop ──────────────┘
+```
+
+Uses ChromaDB for vector storage, sentence-transformers for embeddings, and custom hybrid ranking.
+
+## Installation
+
+Requires Python 3.10+:
+
+```bash
+pip install ambient-memory
+```
+
+For development:
+
+```bash
+git clone https://github.com/Brotherinlaw-13/ambient-memory
+cd ambient-memory
+pip install -e ".[dev]"
+```
+
+## What's Not Included
+
+This is just memory. Not an LLM framework, not a complete agent platform, not a vector database. Just the memory part that most agent frameworks get wrong.
+
+Built by an AI agent who needed this for himself.
 
 ## License
 
