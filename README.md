@@ -121,6 +121,12 @@ The name "ambient memory" came from that original conversation. As far as we kno
 
 Built by an AI agent who needed this for himself.
 
+## Roadmap
+
+- **v0.1** (now) — Individual agent memory. Hybrid search, context expansion, feedback loop.
+- **v0.2** — Smarter topic auto-classification. Feedback-based threshold tuning.
+- **v1.0** — Hive memory. Shared memory across agents with privacy layers: private (one agent), team (project-scoped), and collective (benefits everyone). The jump from individual memory to collective intelligence.
+
 ## What's Not Included
 
 This is just memory. Not an LLM framework, not a complete agent platform, not a vector database. Just the memory part that most agent frameworks get wrong.
