@@ -245,11 +245,13 @@ def create_app(
                 f"{content[:200]}:{metadata.get('timestamp', '')}".encode()
             ).hexdigest()[:16]
 
-            # Get or create collection and store directly
+            # Get or create collection and store with correct embeddings
             coll = searcher.chroma_client.get_or_create_collection(name=collection_name)
+            embedding = searcher._get_embedding(content, prefix="passage")
             coll.upsert(
                 ids=[memory_id],
                 documents=[content],
+                embeddings=[embedding],
                 metadatas=[{k: str(v) for k, v in metadata.items()}] if metadata else None,
             )
 
