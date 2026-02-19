@@ -2,6 +2,14 @@
 
 Memory for AI agents that actually works.
 
+## What Is Ambient Memory?
+
+Humans don't search their memory. You hear a name, a topic, a question, and the relevant context just appears. You don't think "let me query my brain for that project we discussed last week"; you just *know*.
+
+Ambient memory works the same way for AI agents. Instead of the agent explicitly requesting memories, relevant context is automatically surfaced and injected into the conversation as it happens. The agent doesn't ask for memories; memories find the agent.
+
+Most memory solutions for agents are retrieval-based: the agent decides when to search and what to search for. Ambient memory flips this. The system listens to the conversation, decides what's relevant, and gives it to the agent before it even asks. That's what makes it *ambient*: it runs in the background, like human memory does.
+
 ## The Problem
 
 Pure semantic search is broken for agent memory. Search for "Google Calendar" and get matches for every Google service ever mentioned. Conversations get butchered by naive chunking. Your agent forgets what matters and remembers what doesn't.
