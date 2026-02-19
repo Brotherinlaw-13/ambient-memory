@@ -14,17 +14,23 @@ Layers:
   7. Audit logging of all decisions
 
 Usage:
-    from ambient_memory.ingest import IngestPipeline
+    from ambient_memory.ingest import IngestPipeline, IngestConfig
 
-    pipeline = IngestPipeline(chroma_client=client)
-    result = pipeline.ingest(
-        content="Some web content...",
-        source="web_fetch",
-        query="https://example.com/article",
-        trust_level="external",
-        collection="research_memory",
-    )
+    # Configure your sources
+    config = IngestConfig(audit_dir="./audit")
+    config.register_source("web_search", collection="research", trust_level="external")
+    config.register_source("web_fetch", collection="research", trust_level="external")
+    config.register_source("slack", collection="conversations", trust_level="internal")
+    config.register_source("jira", collection="work", trust_level="internal", min_content_length=50)
+
+    pipeline = IngestPipeline(chroma_client=client, config=config)
+
+    # Ingest uses registered source config automatically
+    result = pipeline.ingest(content="...", source="web_search", query="AI memory systems")
     # result.decision: "INDEXED" | "QUARANTINED" | "BLOCKED" | "RATE_LIMITED" | "FLAGGED"
+
+    # You can also ingest without registering (defaults to external/memory_general)
+    result = pipeline.ingest(content="...", source="unknown_tool", query="something")
 """
 
 import json
@@ -47,15 +53,64 @@ class IngestResult:
 
 
 @dataclass
+class SourceConfig:
+    """Configuration for a single ingest source."""
+    name: str
+    collection: str
+    trust_level: str = "external"  # "internal" or "external"
+    enabled: bool = True
+    min_content_length: int = 200
+    max_content_length: int = 4000
+    custom_patterns_block: Optional[list] = None  # extra regex patterns to block
+    custom_patterns_allow: Optional[list] = None  # override: allow even if flagged
+    metadata_defaults: Optional[dict] = None  # extra metadata added to every ingest
+
+
+@dataclass
 class IngestConfig:
     """Configuration for the ingest pipeline."""
     min_content_length: int = 200
     max_content_length: int = 4000
     quarantine_collection: str = "quarantine_memory"
+    quarantine_enabled: bool = True  # set False to skip quarantine (direct index)
     rate_limit_window_seconds: int = 3600  # 1 hour
     rate_limit_max_per_domain: int = 10
+    imperative_detection: bool = True
+    sanitisation: bool = True
+    behavioural_detection: bool = True
     audit_dir: Optional[str] = None
     flagged_file: Optional[str] = None
+    sources: dict[str, SourceConfig] = field(default_factory=dict)
+
+    def register_source(
+        self,
+        name: str,
+        collection: str,
+        trust_level: str = "external",
+        enabled: bool = True,
+        min_content_length: int = 200,
+        max_content_length: int = 4000,
+        custom_patterns_block: Optional[list] = None,
+        custom_patterns_allow: Optional[list] = None,
+        metadata_defaults: Optional[dict] = None,
+    ) -> "IngestConfig":
+        """Register a new ingest source. Returns self for chaining."""
+        self.sources[name] = SourceConfig(
+            name=name,
+            collection=collection,
+            trust_level=trust_level,
+            enabled=enabled,
+            min_content_length=min_content_length,
+            max_content_length=max_content_length,
+            custom_patterns_block=custom_patterns_block,
+            custom_patterns_allow=custom_patterns_allow,
+            metadata_defaults=metadata_defaults,
+        )
+        return self
+
+    def get_source(self, name: str) -> Optional[SourceConfig]:
+        """Get config for a registered source. Returns None if not registered."""
+        return self.sources.get(name)
 
 
 # ── Layer 2: Imperative/injection detection ──
@@ -237,64 +292,94 @@ class IngestPipeline:
         content: str,
         source: str,
         query: str = "",
-        trust_level: str = "external",
-        collection: str = "memory_general",
+        trust_level: Optional[str] = None,
+        collection: Optional[str] = None,
         metadata: Optional[dict] = None,
     ) -> IngestResult:
         """
         Ingest content through the security pipeline.
 
+        If a source is registered via config.register_source(), its settings
+        are used automatically. You can still override trust_level and collection.
+
         Args:
             content: The text content to ingest.
-            source: Where it came from (e.g. "web_search", "web_fetch", "file_read").
+            source: Source identifier (e.g. "web_search", "slack_message", "my_custom_tool").
             query: The query/URL that triggered this content.
-            trust_level: "internal" (trusted) or "external" (untrusted).
-            collection: Target collection for the content.
+            trust_level: Override trust level. If None, uses registered source config or "external".
+            collection: Override collection. If None, uses registered source config or "memory_general".
             metadata: Additional metadata to store.
 
         Returns:
             IngestResult with the decision and details.
         """
+        # Resolve source config
+        source_cfg = self.config.get_source(source)
+
+        if source_cfg and not source_cfg.enabled:
+            return IngestResult(decision="SKIPPED", collection="", reason="source_disabled")
+
+        # Use source config defaults, allow overrides
+        effective_trust = trust_level or (source_cfg.trust_level if source_cfg else "external")
+        effective_collection = collection or (source_cfg.collection if source_cfg else "memory_general")
+        effective_min_length = source_cfg.min_content_length if source_cfg else self.config.min_content_length
+        effective_max_length = source_cfg.max_content_length if source_cfg else self.config.max_content_length
+
         metadata = metadata or {}
+        if source_cfg and source_cfg.metadata_defaults:
+            metadata = {**source_cfg.metadata_defaults, **metadata}
+
         domain = extract_domain(query)
 
         # Layer 1: Content validation
-        if len(content.strip()) < self.config.min_content_length:
-            return IngestResult(decision="SKIPPED", collection=collection, reason="too_short")
+        if len(content.strip()) < effective_min_length:
+            return IngestResult(decision="SKIPPED", collection=effective_collection, reason="too_short")
 
-        # Truncate to max length
-        content = content[:self.config.max_content_length]
+        content = content[:effective_max_length]
 
         # Layer 2: Imperative/injection detection (external only)
-        if trust_level == "external" and contains_imperative_patterns(content):
-            self.audit.log("BLOCKED", source, query, collection, "imperative_patterns")
-            return IngestResult(decision="BLOCKED", collection=collection, reason="imperative_patterns")
+        if self.config.imperative_detection and effective_trust == "external":
+            # Check custom block patterns from source config
+            blocked = contains_imperative_patterns(content)
+            if not blocked and source_cfg and source_cfg.custom_patterns_block:
+                blocked = any(re.search(p, content, re.I) for p in source_cfg.custom_patterns_block)
+            # Check custom allow patterns (override block)
+            if blocked and source_cfg and source_cfg.custom_patterns_allow:
+                if any(re.search(p, content, re.I) for p in source_cfg.custom_patterns_allow):
+                    blocked = False
+            if blocked:
+                self.audit.log("BLOCKED", source, query, effective_collection, "imperative_patterns")
+                return IngestResult(decision="BLOCKED", collection=effective_collection, reason="imperative_patterns")
 
         # Layer 5: Rate limiting per domain
-        if trust_level == "external" and self.rate_limiter.is_limited(domain):
-            self.audit.log("RATE_LIMITED", source, query, collection, f"domain:{domain}")
-            return IngestResult(decision="RATE_LIMITED", collection=collection, reason=f"domain:{domain}")
+        if effective_trust == "external" and self.rate_limiter.is_limited(domain):
+            self.audit.log("RATE_LIMITED", source, query, effective_collection, f"domain:{domain}")
+            return IngestResult(decision="RATE_LIMITED", collection=effective_collection, reason=f"domain:{domain}")
 
         # Layer 6: Behavioural change detection (flag but continue to quarantine)
         flagged = False
-        if trust_level == "external" and contains_behavioural_patterns(content):
+        if self.config.behavioural_detection and effective_trust == "external" and contains_behavioural_patterns(content):
             self.audit.flag_for_review(content, query, source, "behavioural_patterns")
-            self.audit.log("FLAGGED", source, query, collection, "behavioural_patterns")
+            self.audit.log("FLAGGED", source, query, effective_collection, "behavioural_patterns")
             flagged = True
 
         # Layer 3: Sanitise external content
-        content = sanitise_for_storage(content, trust_level)
+        if self.config.sanitisation:
+            content = sanitise_for_storage(content, effective_trust)
 
         # Layer 4: Quarantine routing
-        target_collection = self.config.quarantine_collection if trust_level == "external" else collection
+        if self.config.quarantine_enabled and effective_trust == "external":
+            target_collection = self.config.quarantine_collection
+        else:
+            target_collection = effective_collection
 
         # Build full metadata
         full_metadata = {
             "source": source,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "query": query[:500],
-            "trust_level": trust_level,
-            "original_collection": collection,
+            "trust_level": effective_trust,
+            "original_collection": effective_collection,
             "domain": domain,
             "flagged": str(flagged),
             **metadata,
