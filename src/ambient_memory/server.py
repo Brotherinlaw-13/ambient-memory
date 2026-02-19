@@ -112,6 +112,39 @@ def create_app(
             "embedding_server": searcher.use_embedding_server,
             "collections": len(collection_manager.list_collections())
         }
+
+    # ── Compatibility endpoints (old embedding-server.py format) ──
+
+    @app.get("/search")
+    async def compat_search(q: str, n: int = 5, collection: Optional[str] = None):
+        """
+        Compatibility endpoint for the old embedding server.
+        Maps GET /search?q=...&n=... to the new POST /query format.
+        Returns results with 'snippet' and 'similarity' keys for backward compat.
+        """
+        try:
+            available = [c["name"] for c in collection_manager.list_collections() if c["count"] > 0]
+            if not available:
+                return {"query": q, "results": []}
+
+            search_cols = [collection] if collection and collection in available else available
+            results = searcher.search(query=q, collections=search_cols, limit=n, include_scores=True)
+
+            # Map to old format
+            compat_results = []
+            for r in results:
+                compat_results.append({
+                    "snippet": r.get("text", r.get("snippet", "")),
+                    "source": r.get("source", ""),
+                    "collection": r.get("collection", ""),
+                    "similarity": r.get("semantic_similarity", r.get("final_score", 0.0)),
+                    "keyword_score": r.get("keyword_score", 0.0),
+                    "final_score": r.get("final_score", 0.0),
+                })
+
+            return {"query": q, "results": compat_results}
+        except Exception as e:
+            return {"query": q, "results": [], "error": str(e)}
     
     @app.post("/query", response_model=QueryResponse)
     async def query_memory(request: QueryRequest):
@@ -160,6 +193,40 @@ def create_app(
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     
+    @app.post("/ingest/compat")
+    async def compat_ingest(request: dict):
+        """
+        Compatibility endpoint for the memory-ingest plugin.
+        Accepts {content, collection, metadata} format from the OpenClaw plugin.
+        Stores directly into ChromaDB without chunking.
+        """
+        try:
+            content = request.get("content", "")
+            collection_name = request.get("collection", "memory_general")
+            metadata = request.get("metadata", {})
+
+            if not content or len(content) < 10:
+                raise HTTPException(status_code=400, detail="Content too short")
+
+            import hashlib
+            memory_id = hashlib.sha256(
+                f"{content[:200]}:{metadata.get('timestamp', '')}".encode()
+            ).hexdigest()[:16]
+
+            # Get or create collection and store directly
+            coll = searcher.chroma_client.get_or_create_collection(name=collection_name)
+            coll.upsert(
+                ids=[memory_id],
+                documents=[content],
+                metadatas=[{k: str(v) for k, v in metadata.items()}] if metadata else None,
+            )
+
+            return {"id": memory_id, "collection": collection_name, "chunks": 1, "metadata": metadata}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
     @app.post("/ingest", response_model=IngestResponse)
     async def ingest_text(request: IngestRequest):
         """Ingest text into memory collections."""
