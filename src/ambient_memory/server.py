@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field
 from .search import HybridSearcher
 from .chunking import ConversationChunker, Chunk
 from .collections import CollectionManager
+from .ingest import IngestPipeline, IngestConfig, classify
+from .quarantine import QuarantineTracker
 
 
 # Pydantic models for API requests/responses
@@ -100,6 +102,16 @@ def create_app(
         embedding_server_url=embedding_server_url
     )
     
+    # Initialise ingest pipeline for auto-classification
+    ingest_config = IngestConfig()
+    ingest_pipeline = IngestPipeline(
+        chroma_client=searcher.chroma_client,
+        config=ingest_config
+    )
+    
+    # Initialise quarantine tracker
+    quarantine_tracker = QuarantineTracker()
+    
     # Ensure default collections exist
     collection_manager.ensure_default_collections()
     
@@ -129,6 +141,14 @@ def create_app(
 
             search_cols = [collection] if collection and collection in available else available
             results = searcher.search(query=q, collections=search_cols, limit=n, include_scores=True)
+
+            # Track quarantine accesses
+            for r in results:
+                if r.get("collection") == ingest_config.quarantine_collection:
+                    # Extract memory_id from result if available
+                    memory_id = r.get("memory_id") or r.get("id")
+                    if memory_id:
+                        quarantine_tracker.record_access(memory_id)
 
             # Map to old format
             compat_results = []
@@ -181,6 +201,14 @@ def create_app(
                 include_scores=request.include_scores
             )
             
+            # Track quarantine accesses
+            for r in results:
+                if r.get("collection") == ingest_config.quarantine_collection:
+                    # Extract memory_id from result if available
+                    memory_id = r.get("memory_id") or r.get("id")
+                    if memory_id:
+                        quarantine_tracker.record_access(memory_id)
+            
             execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
             
             return QueryResponse(
@@ -202,8 +230,12 @@ def create_app(
         """
         try:
             content = request.get("content", "")
-            collection_name = request.get("collection", "memory_general")
+            collection_name = request.get("collection")
             metadata = request.get("metadata", {})
+            
+            # Auto-classify if no collection specified
+            if not collection_name:
+                collection_name = classify(content)
 
             if not content or len(content) < 10:
                 raise HTTPException(status_code=400, detail="Content too short")
@@ -385,6 +417,23 @@ def create_app(
             
         except HTTPException:
             raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    @app.get("/quarantine/candidates")
+    async def get_quarantine_candidates():
+        """Get list of quarantine memories eligible for promotion."""
+        try:
+            candidates = quarantine_tracker.get_promotion_candidates()
+            return {
+                "candidates": candidates,
+                "total_count": len(candidates),
+                "criteria": {
+                    "min_access_count": 3,
+                    "min_hours_since_first": 24,
+                    "exclude_flagged": True
+                }
+            }
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     

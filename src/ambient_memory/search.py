@@ -5,8 +5,10 @@ The core innovation: pure semantic similarity fails for agent memory.
 This module implements weighted hybrid search (70% semantic + 30% keyword/entity by default).
 """
 
+import json
 import re
 import httpx
+from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Any
 import chromadb
 from chromadb.config import Settings
@@ -103,6 +105,9 @@ class HybridSearcher:
         
         # Check if embedding server is available
         self.use_embedding_server = self._check_embedding_server()
+        
+        # Load feedback-based threshold adjustments
+        self.threshold_adjustments = self._load_threshold_adjustments()
     
     def _check_embedding_server(self) -> bool:
         """Check if embedding server is available."""
@@ -113,6 +118,78 @@ class HybridSearcher:
             return response.status_code == 200
         except Exception:
             return False
+    
+    def _load_threshold_adjustments(self) -> Dict[str, float]:
+        """
+        Load feedback data and calculate per-collection threshold adjustments.
+        
+        Reads .ambient-memory-feedback.jsonl and computes average scores per collection.
+        If a collection's average is below -0.3, raises threshold by 0.05.
+        If above 0.3, lowers by 0.05. Clamps between 0.45 and 0.75.
+        
+        Returns:
+            Dict mapping collection names to threshold adjustments
+        """
+        feedback_file = Path(".ambient-memory-feedback.jsonl")
+        adjustments = {}
+        
+        if not feedback_file.exists():
+            return adjustments
+            
+        try:
+            collection_scores = {}  # collection -> list of scores
+            
+            with open(feedback_file, 'r') as f:
+                for line in f:
+                    try:
+                        data = json.loads(line.strip())
+                        collection = data.get('collection')
+                        score = data.get('score')
+                        
+                        if collection and isinstance(score, (int, float)):
+                            if collection not in collection_scores:
+                                collection_scores[collection] = []
+                            collection_scores[collection].append(score)
+                    except (json.JSONDecodeError, KeyError):
+                        continue
+            
+            # Calculate adjustments based on average scores
+            for collection, scores in collection_scores.items():
+                if not scores:
+                    continue
+                    
+                avg_score = sum(scores) / len(scores)
+                
+                if avg_score < -0.3:
+                    # Poor performance, raise threshold (be more selective)
+                    adjustments[collection] = 0.05
+                elif avg_score > 0.3:
+                    # Good performance, lower threshold (be more inclusive)
+                    adjustments[collection] = -0.05
+                # else: no adjustment needed for neutral performance
+                    
+        except Exception as e:
+            # Non-critical error, continue without adjustments
+            pass
+            
+        return adjustments
+    
+    def get_effective_threshold(self, collection: str) -> float:
+        """
+        Get the effective similarity threshold for a collection, adjusted by feedback.
+        
+        Args:
+            collection: Collection name
+            
+        Returns:
+            Effective threshold (clamped between 0.45 and 0.75)
+        """
+        base_threshold = self.min_similarity_threshold
+        adjustment = self.threshold_adjustments.get(collection, 0.0)
+        effective = base_threshold + adjustment
+        
+        # Clamp between 0.45 and 0.75
+        return max(0.45, min(0.75, effective))
     
     def _get_embedding(self, text: str, prefix: str = "query") -> List[float]:
         """Get embedding for text, either from server or locally."""
@@ -258,13 +335,16 @@ class HybridSearcher:
         # Sort by final score (descending)
         all_results.sort(key=lambda x: x["final_score"], reverse=True)
         
-        # Apply min similarity threshold to reduce noise
+        # Apply per-collection similarity threshold to reduce noise
         # Testing showed threshold 0.60 cuts noise from 43% to 18% with 90% coverage
-        if self.min_similarity_threshold > 0:
-            all_results = [
-                r for r in all_results
-                if r.get("semantic_similarity", 0) >= self.min_similarity_threshold
-            ]
+        # Now adjusted per collection based on feedback
+        filtered_results = []
+        for r in all_results:
+            collection = r.get("collection", "")
+            effective_threshold = self.get_effective_threshold(collection)
+            if r.get("semantic_similarity", 0) >= effective_threshold:
+                filtered_results.append(r)
+        all_results = filtered_results
         
         return all_results[:limit]
     

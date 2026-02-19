@@ -43,6 +43,135 @@ from pathlib import Path
 from typing import Optional
 
 
+# ── Auto-classification: Keyword-based content categorisation ──
+
+def classify(content: str) -> str:
+    """
+    Classify content into one of the predefined collections based on keywords/patterns.
+    Uses keyword scoring to assign content to the most relevant category.
+    
+    Collections:
+    - memory_work — meetings, deadlines, sprints, jira, tickets, colleagues, company names, revenue, KPIs
+    - memory_projects — code, repos, architecture, bugs, features, PRs, deployments, APIs
+    - memory_personal — family, health, food, hobbies, travel, personal plans
+    - memory_infrastructure — servers, deployments, cron, config, ports, databases, CI/CD
+    - memory_general — fallback for unclassified content
+    
+    Args:
+        content: Text content to classify
+        
+    Returns:
+        Collection name (str)
+    """
+    if not content or not content.strip():
+        return 'memory_general'
+        
+    content_lower = content.lower()
+    
+    # Define keyword patterns for each category with word boundaries
+    work_patterns = [
+        r'\bmeetings?\b', r'\bdeadlines?\b', r'\bsprints?\b', r'\bjira\b', r'\btickets?\b', 
+        r'\bcolleagues?\b', r'\brevenue\b', r'\bkpis?\b', r'\bstandup\b', r'\bscrum\b', 
+        r'\bquarterly\b', r'\bbudgets?\b', r'\bforecasts?\b', r'\bmilestones?\b', 
+        r'\bperformance\b', r'\bfeedback\b', r'\bmanagers?\b', r'\bteams?\b', 
+        r'\bclients?\b', r'\bcustomers?\b', r'\bbusiness\b', r'\bconferences?\b', 
+        r'\bpresentations?\b', r'\breports?\b', r'\banalysis\b', r'\broadmap\b', 
+        r'\bobjectives?\b', r'\bgoals?\b', r'\btargets?\b', r'\bmetrics\b', 
+        r'\bdashboards?\b', r'\bsprint planning\b'
+    ]
+    
+    projects_patterns = [
+        r'\bcode\b', r'\brepos?\b', r'\brepository\b', r'\brepositories\b', r'\barchitecture\b', 
+        r'\bbugs?\b', r'\bfeatures?\b', r'\bpull requests?\b', r'\bprs?\b', r'\bapis?\b', 
+        r'\bendpoints?\b', r'\bmicroservices?\b', r'\bschemas?\b', r'\bmigrations?\b', 
+        r'\btesting\b', r'\bunittests?\b', r'\bintegration\b', r'\bfrontend\b', r'\bbackend\b', 
+        r'\bframeworks?\b', r'\blibraries\b', r'\bdependencies\b', r'\bversions?\b', 
+        r'\bcommits?\b', r'\bbranches?\b', r'\bmerges?\b', r'\bbuilds?\b', r'\bgithub\b', 
+        r'\bgitlab\b', r'\bbitbucket\b', r'\bstaging\b'
+    ]
+    
+    personal_patterns = [
+        r'\bfamilies\b', r'\bfamily\b', r'\bhealth\b', r'\bfoods?\b', r'\bhobbies\b', 
+        r'\btravels?\b', r'\bvacations?\b', r'\bholidays?\b', r'\bpersonal\b', 
+        r'\bfriends?\b', r'\bbirthdays?\b', r'\banniversaries\b', r'\bweddings?\b', 
+        r'\brestaurants?\b', r'\brecipes?\b', r'\bcooking\b', r'\bexercise\b', r'\bgyms?\b', 
+        r'\bdoctors?\b', r'\bappointments?\b', r'\bmedicine\b', r'\bdiet\b', r'\bbooks?\b', 
+        r'\bmovies?\b', r'\bmusic\b', r'\bconcerts?\b', r'\bsports?\b', r'\bgames?\b', 
+        r'\bweekends?\b', r'\bevenings?\b', r'\bshopping\b', r'\bhomes?\b', r'\bgardens?\b', 
+        r'\bpets?\b', r'\bcats?\b', r'\bdogs?\b', r'\bphotography\b', r'\barts?\b', r'\bcrafts?\b'
+    ]
+    
+    infrastructure_patterns = [
+        r'\bservers?\b', r'\bcrons?\b', r'\bconfigs?\b', r'\bconfiguration\b', r'\bports?\b', 
+        r'\bdatabases?\b', r'\bci/cd\b', r'\bpipelines?\b', r'\bmonitoring\b', r'\blogging\b', 
+        r'\balerting\b', r'\bbackups?\b', r'\bsecurity\b', r'\bfirewalls?\b', 
+        r'\bload balancers?\b', r'\bnginx\b', r'\bapache\b', r'\bredis\b', 
+        r'\belasticsearch\b', r'\bkafka\b', r'\bpostgresql\b', r'\bmysql\b', 
+        r'\bmongodb\b', r'\baws\b', r'\bazure\b', r'\bgcp\b', r'\bclouds?\b', 
+        r'\bvpcs?\b', r'\bsubnets?\b', r'\bec2\b', r'\brds\b', r'\bs3\b', r'\blambda\b', 
+        r'\becs\b', r'\beks\b', r'\bterraform\b', r'\bansible\b', r'\bhelm\b', 
+        r'\borchestration\b', r'\bjenkins\b'
+    ]
+    
+    # Score each category
+    scores = {
+        'memory_work': 0,
+        'memory_projects': 0,
+        'memory_personal': 0,
+        'memory_infrastructure': 0
+    }
+    
+    # Count pattern matches for each category using regex
+    for pattern in work_patterns:
+        if re.search(pattern, content_lower):
+            scores['memory_work'] += 1
+            
+    for pattern in projects_patterns:
+        if re.search(pattern, content_lower):
+            scores['memory_projects'] += 1
+            
+    for pattern in personal_patterns:
+        if re.search(pattern, content_lower):
+            scores['memory_personal'] += 1
+            
+    for pattern in infrastructure_patterns:
+        if re.search(pattern, content_lower):
+            scores['memory_infrastructure'] += 1
+    
+    # Handle overlapping keywords with context - deployment and kubernetes can be both
+    # Look for context clues to disambiguate
+    if 'deployment' in content_lower or 'kubernetes' in content_lower or 'docker' in content_lower:
+        # If mentions containers with other dev terms, lean towards projects
+        dev_context = any(term in content_lower for term in [
+            'code', 'repository', 'api', 'feature', 'build', 'github', 'pull request'
+        ])
+        # If mentions ops terms, lean towards infrastructure  
+        ops_context = any(term in content_lower for term in [
+            'server', 'monitoring', 'cron', 'configuration', 'pipeline', 'production'
+        ])
+        
+        if dev_context and not ops_context:
+            scores['memory_projects'] += 1
+        elif ops_context and not dev_context:
+            scores['memory_infrastructure'] += 1
+    
+    # Find the highest scoring category
+    max_score = max(scores.values()) if scores.values() else 0
+    
+    # If no keywords matched, return general
+    if max_score == 0:
+        return 'memory_general'
+        
+    # Find all categories with max score
+    top_categories = [cat for cat, score in scores.items() if score == max_score]
+    
+    # If tie, return general
+    if len(top_categories) > 1:
+        return 'memory_general'
+        
+    return top_categories[0]
+
+
 @dataclass
 class IngestResult:
     """Result of an ingest attempt."""
@@ -390,9 +519,13 @@ class IngestPipeline:
 
         # Use source config defaults, allow overrides
         effective_trust = trust_level or (source_cfg.trust_level if source_cfg else "external")
-        effective_collection = collection or (source_cfg.collection if source_cfg else "memory_general")
+        effective_collection = collection or (source_cfg.collection if source_cfg else None)
         effective_min_length = source_cfg.min_content_length if source_cfg else self.config.min_content_length
         effective_max_length = source_cfg.max_content_length if source_cfg else self.config.max_content_length
+
+        # Auto-classify if no collection specified
+        if effective_collection is None:
+            effective_collection = classify(content)
 
         metadata = metadata or {}
         if source_cfg and source_cfg.metadata_defaults:
