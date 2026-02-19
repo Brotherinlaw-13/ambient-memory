@@ -52,8 +52,11 @@ ambient-memory serve --port 9876 --chroma-path ./data
 
 - **Hybrid Search**: Combines semantic embeddings (70%) with keyword/entity matching (30%)
 - **Smart Chunking**: Conversation-aware chunking that preserves context boundaries
+- **Secure Ingest Pipeline**: 7-layer security for memory storage (imperative detection, sanitisation, quarantine, rate limiting, behavioural change detection, audit logging)
+- **Quarantine System**: External content goes to quarantine first, must prove useful before promotion to permanent memory. Nothing enters your agent's memory unchecked.
 - **Topic Collections**: Separate work memories from personal ones automatically
 - **Feedback Loop**: Rate results +1/0/-1 to improve search quality over time
+- **No Decay, Ever**: Memories don't fade. Relevance determines what surfaces, not age. We rank, we don't forget.
 - **HTTP API**: Simple REST interface any agent can use
 
 ## Configuration
