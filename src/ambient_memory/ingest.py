@@ -50,6 +50,8 @@ class IngestResult:
     collection: str
     reason: Optional[str] = None
     memory_id: Optional[str] = None
+    digest_id: Optional[str] = None  # ID of the digest (searchable)
+    raw_id: Optional[str] = None  # ID of the raw content (reference)
 
 
 @dataclass
@@ -66,13 +68,20 @@ class SourceConfig:
     metadata_defaults: Optional[dict] = None  # extra metadata added to every ingest
 
 
+DigestFn = Optional[callable]  # (content: str, source: str, query: str) -> str
+
+
 @dataclass
 class IngestConfig:
     """Configuration for the ingest pipeline."""
     min_content_length: int = 200
     max_content_length: int = 4000
     quarantine_collection: str = "quarantine_memory"
+    raw_collection_suffix: str = "_raw"  # e.g. research_memory → research_memory_raw
     quarantine_enabled: bool = True  # set False to skip quarantine (direct index)
+    digest_enabled: bool = True  # enable digest+raw dual storage
+    digest_fn: DigestFn = None  # custom digest function; if None, uses built-in extractive
+    digest_max_length: int = 500  # max length of digest
     rate_limit_window_seconds: int = 3600  # 1 hour
     rate_limit_max_per_domain: int = 10
     imperative_detection: bool = True
@@ -262,6 +271,66 @@ class AuditLogger:
             pass
 
 
+# ── Digest: extractive summarisation ──
+
+def extractive_digest(content: str, source: str, query: str, max_length: int = 500) -> str:
+    """
+    Built-in extractive digest. Picks the most information-dense sentences.
+    No LLM needed. Fast and deterministic.
+
+    For better results, provide a custom digest_fn that uses an LLM.
+    """
+    # Strip external data markers
+    text = re.sub(r"\[EXTERNAL DATA[^\]]*\]\n?", "", content)
+    text = re.sub(r"\[REMOVED_\w+\]", "", text)
+    text = text.strip()
+
+    if len(text) <= max_length:
+        return text
+
+    # Split into sentences
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    if not sentences:
+        return text[:max_length]
+
+    # Score sentences by information density
+    scored = []
+    for sent in sentences:
+        score = 0
+        # Longer sentences tend to have more info (up to a point)
+        score += min(len(sent.split()), 20)
+        # Sentences with numbers are usually factual
+        score += len(re.findall(r'\d+', sent)) * 3
+        # Sentences with quotes or specific entities
+        score += len(re.findall(r'[A-Z][a-z]+', sent))
+        # Bonus if related to query
+        if query:
+            query_words = set(query.lower().split())
+            sent_words = set(sent.lower().split())
+            overlap = len(query_words & sent_words)
+            score += overlap * 5
+        # Penalty for very short sentences
+        if len(sent.split()) < 4:
+            score -= 10
+        scored.append((score, sent))
+
+    # Sort by score, take best sentences
+    scored.sort(key=lambda x: x[0], reverse=True)
+    digest_parts = []
+    current_length = 0
+    for _score, sent in scored:
+        if current_length + len(sent) > max_length:
+            break
+        digest_parts.append(sent)
+        current_length += len(sent) + 1
+
+    # Reorder by original position for readability
+    original_order = {sent: i for i, sent in enumerate(sentences)}
+    digest_parts.sort(key=lambda s: original_order.get(s, 999))
+
+    return " ".join(digest_parts) if digest_parts else text[:max_length]
+
+
 # ── Main Pipeline ──
 
 class IngestPipeline:
@@ -385,14 +454,37 @@ class IngestPipeline:
             **metadata,
         }
 
-        # Store in ChromaDB
-        memory_id = self._store(content, target_collection, full_metadata)
+        # Digest: create a short searchable version + store raw for reference
+        if self.config.digest_enabled and len(content) > self.config.digest_max_length:
+            if self.config.digest_fn:
+                digest = self.config.digest_fn(content, source, query)
+            else:
+                digest = extractive_digest(content, source, query, self.config.digest_max_length)
 
-        if memory_id:
-            decision = "QUARANTINED" if trust_level == "external" else "INDEXED"
+            # Store digest (this is what gets searched and injected)
+            digest_metadata = {**full_metadata, "type": "digest"}
+            digest_id = self._store(digest, target_collection, digest_metadata)
+
+            # Store raw (this is the full reference, not searched by default)
+            raw_collection = target_collection + self.config.raw_collection_suffix
+            raw_metadata = {**full_metadata, "type": "raw", "digest_id": digest_id or ""}
+            raw_id = self._store(content, raw_collection, raw_metadata)
+        else:
+            # Content is short enough, store as-is (it IS the digest)
+            digest_id = self._store(content, target_collection, {**full_metadata, "type": "full"})
+            raw_id = None
+
+        if digest_id:
+            decision = "QUARANTINED" if self.config.quarantine_enabled and effective_trust == "external" else "INDEXED"
             self.audit.log(decision, source, query, target_collection)
             self.rate_limiter.record(domain)
-            return IngestResult(decision=decision, collection=target_collection, memory_id=memory_id)
+            return IngestResult(
+                decision=decision,
+                collection=target_collection,
+                memory_id=digest_id,
+                digest_id=digest_id,
+                raw_id=raw_id,
+            )
         else:
             self.audit.log("SKIPPED", source, query, target_collection, "storage_failed")
             return IngestResult(decision="SKIPPED", collection=target_collection, reason="storage_failed")
