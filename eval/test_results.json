@@ -1,0 +1,419 @@
+{
+  "timestamp": "2026-02-19T08:29:38.937828",
+  "total_queries_available": 32,
+  "queries_tested": 15,
+  "embedding_server_status": "online",
+  "query_results": [
+    {
+      "query": "[\ud83d\udcce image.png]",
+      "source": "the-factory-2026-02-17.md",
+      "line_number": 54,
+      "timestamp": "19:02",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Nano Banana image generation test] Diego requested Rook generate self-portrait using Nano Banana (Gemini 2.5 image generator) showing how Rook would look as human. Rook generated detailed prompt: \"ea",
+          "source": "the-factory-2026-02-07.md",
+          "similarity": 0.5858,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Morning briefing and weekly pulse] Rook delivered Monday morning briefing with London weather (6-9\u00b0C, rain afternoon), noted gog CLI needs OAuth setup for calendar/email, and shared AI/tech headlines",
+          "source": "the-factory-2026-02-16.md",
+          "similarity": 0.5854,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Caminante blog content migration and UX redesign] Migrated 28 Blogspot travel blogs (300+ posts, 1,743 images, 69MB compressed) into single Astro site on Vercel. Each trip is individual page at /viaj",
+          "source": "the-factory-2026-02-07.md",
+          "similarity": 0.5849,
+          "collection": "memory_general"
+        }
+      ]
+    },
+    {
+      "query": "Bluesky needs 20 responses, can you make sure we do that, no dupes and that the crons is doing this too?",
+      "source": "the-factory-2026-02-17.md",
+      "line_number": 91,
+      "timestamp": "16:15",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Bluesky engagement targets] Diego requested 20 Bluesky responses with no duplicates and confirmed the crons are handling this task automatically. Rook identified a persistent cron token mismatch but ",
+          "source": "the-factory-2026-02-17.md",
+          "similarity": 0.933,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Bluesky engagement strategy] Diego requested 20 Bluesky responses per engagement run with no duplicates, and confirmed the cron jobs are configured to handle this. Three scheduled crons were updated:",
+          "source": "the-factory-2026-02-17.md",
+          "similarity": 0.9234,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Bluesky engagement dedup system] Diego requested dedup system to prevent duplicate Bluesky replies across engagement cron runs. Rook built complete solution: `memory/twitter-engaged.json` log trackin",
+          "source": "the-factory-2026-02-16.md",
+          "similarity": 0.9224,
+          "collection": "memory_infrastructure"
+        }
+      ]
+    },
+    {
+      "query": "How is it going?",
+      "source": "the-factory-2026-02-17.md",
+      "line_number": 102,
+      "timestamp": "16:17",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Reddit engagement setup] u/ChowDownApp account passed the 5-day gate and is now able to post. Rook found 36 original targets in memory/reddit-targets.md and a refreshed queue in chowdown-marketing/re",
+          "source": "the-factory-2026-02-06.md",
+          "similarity": 0.8781,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Job hunt report and email deliverability crisis] Rook compiled a job search report from HN Who's Hiring (Feb 2026) identifying 520 comments and finding one strong match: Fanvue (AI Developer Tooling ",
+          "source": "hogar-2026-02-09.md",
+          "similarity": 0.8745,
+          "collection": "memory_personal"
+        },
+        {
+          "snippet": "[Reddit engagement via u/ChowDownApp] Rook confirmed u/ChowDownApp account is past 5-day gate and can now post. Created 6-post queue across r/loseit, r/CICO, r/intermittentfasting, r/1200isplenty, r/E",
+          "source": "the-factory-2026-02-06.md",
+          "similarity": 0.87,
+          "collection": "memory_projects"
+        }
+      ]
+    },
+    {
+      "query": "Puedes hacer uno ahora?",
+      "source": "the-factory-2026-02-17.md",
+      "line_number": 112,
+      "timestamp": "16:18",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Caminante blog scraping and migration] Diego requested full migration of 28 Blogspot travel blogs to single Vercel-hosted site instead of external links. Initial sub-agent attempt failed to deliver c",
+          "source": "the-factory-2026-02-07.md",
+          "similarity": 0.5611,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Caminante content enrichment for SEO] Rook enhanced caminantehaycamino.vercel.app with expanded SEO content: enriched \"About Us\" section (group history, travel philosophy), \"Featured Trips\" section w",
+          "source": "the-factory-2026-02-07.md",
+          "similarity": 0.5603,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Darwin weekend hackathon kickoff] Diego and Rook agreed to intense weekend sprint (Fri night through Sunday) to build Darwin V2 end-to-end. Plan: (1) Product doc (Rook), (2) SDK v2 rewrite with sync ",
+          "source": "the-factory-2026-02-13.md",
+          "similarity": 0.5602,
+          "collection": "memory_projects"
+        }
+      ]
+    },
+    {
+      "query": "No dupes right?",
+      "source": "the-factory-2026-02-17.md",
+      "line_number": 135,
+      "timestamp": "21:55",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Bluesky duplicate reply issue] Nine duplicate replies were found in the evening engagement run because the morning cron failed to log reply IDs (rkeys) to the dedup file. Rook deleted the 9 duplicate",
+          "source": "the-factory-2026-02-17.md",
+          "similarity": 0.8756,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Bluesky engagement targets] Diego requested 20 Bluesky responses with no duplicates and confirmed the crons are handling this task automatically. Rook identified a persistent cron token mismatch but ",
+          "source": "the-factory-2026-02-17.md",
+          "similarity": 0.8713,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Chowdown sponsored content and monetization] Diego asked if Chowdown should reserve the option for sponsored content in the future without mentioning it now. Rook agreed this makes sense\u2014monetization",
+          "source": "the-factory-2026-02-10.md",
+          "similarity": 0.8683,
+          "collection": "memory_projects"
+        }
+      ]
+    },
+    {
+      "query": "Hmmm, users are saying (and ive noticed it too) that the size estimations from the AI are not the best ones. How could we improve these?",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 72,
+      "timestamp": "12:38",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Chowdown portion estimation improvements] Diego reported that Chowdown users and he noticed AI portion size estimations are inaccurate. Rook analyzed the protein-counter repo and identified the root ",
+          "source": "the-factory-2026-02-16.md",
+          "similarity": 0.8146,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Chowdown food portion estimation] Diego reported that Chowdown's AI portion size estimates are inaccurate. Rook analyzed the current implementation in the protein-counter repo and identified weakness",
+          "source": "the-factory-2026-02-16.md",
+          "similarity": 0.8107,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[AI/tech news roundup] Belgian study shows AI recruitment bias worse than thought - proxy variables like hobbies/language patterns still penalize female candidates after 'de-biasing'. AI deepfakes use",
+          "source": "the-factory-2026-02-15.md",
+          "similarity": 0.7868,
+          "collection": "memory_general"
+        }
+      ]
+    },
+    {
+      "query": "Is just a bit of a meh to do, what else could we do for referencing? A hand?",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 98,
+      "timestamp": "12:39",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Bluesky engagement quality improvement] Diego flagged that afternoon engagement replies were bland, generic AI templates with no banter or personality. Rook deleted 14 template-based replies and rewr",
+          "source": "the-factory-2026-02-16.md",
+          "similarity": 0.8814,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Reddit engagement setup] u/ChowDownApp account passed the 5-day gate and is now able to post. Rook found 36 original targets in memory/reddit-targets.md and a refreshed queue in chowdown-marketing/re",
+          "source": "the-factory-2026-02-06.md",
+          "similarity": 0.8733,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Email reply from Tobias Otte (Bead AI)] Tobias Otte, CTO and co-founder of Bead AI (London\u2192SF, $160-210K, TypeScript/AWS, a16z Speedrun backed), replied to Rook's outreach. He indicated that Bead AI'",
+          "source": "hogar-2026-02-06.md",
+          "similarity": 0.8724,
+          "collection": "memory_personal"
+        }
+      ]
+    },
+    {
+      "query": "And yeah, feel free to check the code, but no changes yet please",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 110,
+      "timestamp": "12:40",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Chowdown account requirement messaging fix] Diego flagged that messaging about whether Chowdown requires an account was inconsistent. Rook had already corrected all mentions on Saturday to 'free to j",
+          "source": "the-factory-2026-02-10.md",
+          "similarity": 0.8671,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Chowdown sponsored content and monetization] Diego asked if Chowdown should reserve the option for sponsored content in the future without mentioning it now. Rook agreed this makes sense\u2014monetization",
+          "source": "the-factory-2026-02-10.md",
+          "similarity": 0.8629,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Hire Space FAQ page copy] Diego requested a review of the Hire Space landing page FAQ section, which Rook found generic and repetitive with missing question text in the first block. Rook proposed rep",
+          "source": "hire-space-2026-02-10.md",
+          "similarity": 0.8606,
+          "collection": "memory_work"
+        }
+      ]
+    },
+    {
+      "query": "https://github.com/Brotherinlaw-13/protein-counter",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 116,
+      "timestamp": "12:41",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Chowdown landing page creation] Diego asked Rook to build a landing page for Chowdown using Astro, referencing GitHub repo `Brotherinlaw-13/protein-counter` for design system and branding. Rook clone",
+          "source": "the-factory-2026-01-31.md",
+          "similarity": 0.6018,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Chowdown Landing Page Build] Diego provided access to the Chowdown app repository (protein-counter.git) and asked Rook to build an Astro-based landing page for the app. Rook extracted the exact desig",
+          "source": "the-factory-2026-01-31.md",
+          "similarity": 0.5897,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Darwin Round 3 Final Refactoring] Rook delivered the third and final refactoring round with five production-ready improvements: (1) OpenAPI 3.0 spec (`docs/api-spec.yaml`) documenting 15+ endpoints a",
+          "source": "the-factory-2026-02-14.md",
+          "similarity": 0.582,
+          "collection": "memory_projects"
+        }
+      ]
+    },
+    {
+      "query": "Other solutions?",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 142,
+      "timestamp": "12:42",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Cross-Topic Context & Memory Management] Diego identified a critical limitation: Rook couldn't see context from messages in other Telegram topics/forums. Rook acknowledged the session isolation issue",
+          "source": "the-factory-2026-01-31.md",
+          "similarity": 0.8767,
+          "collection": "memory_infrastructure"
+        },
+        {
+          "snippet": "[Cross-topic context and memory] Diego identified that Rook had no context from conversations in other topics/channels. Rook confirmed each session is isolated and only receives messages actively deli",
+          "source": "the-factory-2026-01-31.md",
+          "similarity": 0.8704,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Job hunt report and email deliverability crisis] Rook compiled a job search report from HN Who's Hiring (Feb 2026) identifying 520 comments and finding one strong match: Fanvue (AI Developer Tooling ",
+          "source": "hogar-2026-02-09.md",
+          "similarity": 0.8689,
+          "collection": "memory_personal"
+        }
+      ]
+    },
+    {
+      "query": "Yeah, I can work on these later, want to summarise and give those to me later?",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 158,
+      "timestamp": "12:44",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Job hunt strategy and outreach] Rook conducted a daily job search for Diego on Feb 7, 2026, scraping the HN Who's Hiring thread (Feb 2026, 379 postings) and identifying 11 strong opportunities includ",
+          "source": "hogar-2026-02-07.md",
+          "similarity": 0.5678,
+          "collection": "memory_personal"
+        },
+        {
+          "snippet": "[Job search journey context] Rook provided Diego with a comprehensive reminder of their job search journey since early February 2026: ~80+ cold emails sent using chocolate subject line formula, multip",
+          "source": "hogar-2026-02-14.md",
+          "similarity": 0.5643,
+          "collection": "memory_personal"
+        },
+        {
+          "snippet": "[Outreach campaign execution and tracking] Rook executed multiple waves of applications on Feb 7, 2026, sending 73 total emails across the campaign. Initial batch included 10 personalized applications",
+          "source": "hogar-2026-02-07.md",
+          "similarity": 0.5643,
+          "collection": "memory_personal"
+        }
+      ]
+    },
+    {
+      "query": "Can you add these to darwin landing page?",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 168,
+      "timestamp": "20:32",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Darwin Brain mutation engine] darwin-brain built in Python with modules: generator.py (Claude-powered mutation generation with 5 aggressiveness levels), analyzer.py (z-test for statistical significan",
+          "source": "the-factory-2026-02-13.md",
+          "similarity": 0.8811,
+          "collection": "memory_infrastructure"
+        },
+        {
+          "snippet": "[Venue page layout redesign] Rook created an improved mockup for the London Museum Docklands venue page (deployed to https://the-factory-delta.vercel.app/venue-mockup.html) with better information hie",
+          "source": "hire-space-2026-02-09.md",
+          "similarity": 0.872,
+          "collection": "memory_work"
+        },
+        {
+          "snippet": "[Crawl4AI tool integration for competitor analysis] Crawl4AI (github.com/unclecode/crawl4ai) open-source web crawler installed on server\u201450K+ GitHub stars, async batch crawling, JS rendering, LLM-read",
+          "source": "hire-space-2026-02-03.md",
+          "similarity": 0.8632,
+          "collection": "memory_work"
+        }
+      ]
+    },
+    {
+      "query": "[\ud83d\udcce image.png] The blog posted today has the wrong date again :( today is 16/02",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 203,
+      "timestamp": "11:44",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Blog publish date automation] The blog post published on Feb 16 had an incorrect date (Feb 13). Root cause identified: the publish script wasn't updating the `date:` frontmatter field when moving dra",
+          "source": "the-factory-2026-02-16.md",
+          "similarity": 0.907,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Blog publish cron date bug fix] Diego noticed blog post published today (Feb 16) had wrong date stamp (Feb 13). Rook fixed immediate issue and investigated root cause: the publish script wasn't updat",
+          "source": "the-factory-2026-02-16.md",
+          "similarity": 0.8976,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Chowdown blog deployment issues] Chowdown blog post 'Alcohol and Macros: The Honest Guide' was published but had rendering issues in Vercel. Root cause was incorrect frontmatter schema (pubDate inste",
+          "source": "the-factory-2026-02-13.md",
+          "similarity": 0.8908,
+          "collection": "memory_projects"
+        }
+      ]
+    },
+    {
+      "query": "We need 20 replies in bluesky",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 243,
+      "timestamp": "12:01",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Bluesky engagement and replies] Sent 33 total replies on Bluesky (@chowdownapp): 8 notification replies to existing conversations (kahjey-mp3, fitzyminxy50, crissstalitooo, neverendinbrainr0t, flickn",
+          "source": "the-factory-2026-02-15.md",
+          "similarity": 0.9061,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Twitter/Bluesky evening engagement session] Evening session (9:30 PM) on Bluesky: 19 replies sent, 18 posts liked, 12 accounts followed, 1 original post posted. Focused on trending Ozempic/GLP-1 visi",
+          "source": "the-factory-2026-02-10.md",
+          "similarity": 0.9026,
+          "collection": "memory_projects"
+        },
+        {
+          "snippet": "[Bluesky engagement strategy] Diego requested 20 Bluesky responses per engagement run with no duplicates, and confirmed the cron jobs are configured to handle this. Three scheduled crons were updated:",
+          "source": "the-factory-2026-02-17.md",
+          "similarity": 0.8977,
+          "collection": "memory_general"
+        }
+      ]
+    },
+    {
+      "query": "We didnt answer to those before right?",
+      "source": "the-factory-2026-02-16.md",
+      "line_number": 265,
+      "timestamp": "12:06",
+      "results_count": 3,
+      "results": [
+        {
+          "snippet": "[Bluesky engagement quality improvement] Diego flagged that afternoon engagement replies were bland, generic AI templates with no banter or personality. Rook deleted 14 template-based replies and rewr",
+          "source": "the-factory-2026-02-16.md",
+          "similarity": 0.8726,
+          "collection": "memory_general"
+        },
+        {
+          "snippet": "[Fanvue double-email mistake] Critical error: Rook sent follow-up email to Narcis (Fanvue) who had already actively responded to original outreach. Diego was rightfully frustrated as this appeared as ",
+          "source": "hogar-2026-02-12.md",
+          "similarity": 0.8713,
+          "collection": "memory_personal"
+        },
+        {
+          "snippet": "[Bluesky replies quality and macro filter] Diego flagged that afternoon/evening Bluesky replies were bland, generic templates with no personality, contrasting poorly with earlier human-written replies",
+          "source": "the-factory-2026-02-16.md",
+          "similarity": 0.8711,
+          "collection": "memory_projects"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "coverage": 1.0,
+    "avg_results_per_query": 3.0,
+    "queries_with_results": 15,
+    "total_results": 45
+  }
+}
