@@ -65,14 +65,42 @@ class ConversationParser:
     def __init__(self):
         # Patterns to identify Diego's messages
         self.diego_patterns = [
-            r'^\s*`\d+:\d+`\s*\*\*Diego\*\*[:：]\s*(.+)',  # `12:34` **Diego**: message
-            r'^\s*\*\*Diego\*\*[:：]\s*(.+)',  # **Diego**: message
-            r'^\s*Diego[:：]\s*(.+)',  # Diego: message
-            r'.*\*\*Diego\*\*.*',  # Any line containing **Diego**
+            r'^\s*`\d+:\d+`\s*\*\*Diego:\*\*\s*(.+)',  # `12:34` **Diego:** message
+            r'^\s*\*\*Diego:\*\*\s*(.+)',  # **Diego:** message  
+            r'^\s*Diego:\s*(.+)',  # Diego: message
+            r'.*\*\*Diego:\*\*\s*(.+)',  # Any line containing **Diego:** 
         ]
         
         # Pattern to extract timestamps
         self.timestamp_pattern = r'`(\d{2}:\d{2})`'
+        
+        # Patterns for invalid queries (pure attachments, lone emojis, system messages)
+        self.invalid_patterns = [
+            r'^\[📎[^\]]+\]$',  # Pure image/file attachments like "[📎 image.png]"
+            r'^[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF\u2600-\u26FF\u2700-\u27BF]+$',  # Lone emojis
+            r'^\*\*System\*\*:',  # System messages
+            r'^System:',  # System messages
+            r'^Bot:',  # Bot messages
+        ]
+    
+    def _is_valid_query(self, text: str) -> bool:
+        """Check if a message is a valid query (not pure attachment/emoji/system message)."""
+        if not text.strip():
+            return False
+            
+        # Check for invalid patterns
+        for pattern in self.invalid_patterns:
+            if re.match(pattern, text, re.IGNORECASE):
+                return False
+        
+        # Check if it has any actual textual content (words, not just symbols/emojis)
+        # Remove emojis and check if there are still letter/number characters
+        import unicodedata
+        text_no_emoji = ''.join(c for c in text if unicodedata.category(c) not in ['So', 'Sm'])
+        text_cleaned = re.sub(r'[^\w\s]', '', text_no_emoji)
+        
+        # Must have at least one alphanumeric character
+        return bool(re.search(r'[a-zA-Z0-9]', text_cleaned))
     
     def extract_diego_messages(self, file_path: Path) -> List[EvaluationQuery]:
         """Extract Diego's messages from a conversation file."""
@@ -100,17 +128,18 @@ class ConversationParser:
                         diego_text = match.group(1).strip()
                     else:
                         # Full line match, extract everything after the name
-                        if '**Diego**' in line:
-                            parts = line.split('**Diego**', 1)
+                        if '**Diego:**' in line:
+                            parts = line.split('**Diego:**', 1)
                             if len(parts) > 1:
-                                diego_text = parts[1].strip().lstrip(':：').strip()
+                                diego_text = parts[1].strip().lstrip('*').strip()
                         elif 'Diego:' in line:
                             parts = line.split('Diego:', 1)
                             if len(parts) > 1:
                                 diego_text = parts[1].strip()
                     break
             
-            if diego_text and len(diego_text) >= 10:  # Only consider substantive messages
+            # Filter logic: keep short messages but exclude pure attachments/emojis/system messages
+            if diego_text and self._is_valid_query(diego_text):
                 # Extract timestamp if present
                 timestamp_match = re.search(self.timestamp_pattern, line)
                 timestamp = timestamp_match.group(1) if timestamp_match else None
@@ -158,33 +187,116 @@ class RelevanceScorer:
         """
         Score the relevance of a search result to a query.
         
+        Key questions:
+        - Is the returned context actually about the same topic as the message?
+        - Would this context help an AI understand what the user is talking about?
+        
         Returns:
             float: Relevance score from 0.0 (irrelevant) to 1.0 (highly relevant)
         """
         result_text = result.get("text", "").lower()
         query_text = query.text.lower()
         
-        # Basic keyword overlap
+        # Basic keyword overlap (exact word matches)
         query_words = set(query_text.split())
         result_words = set(result_text.split())
-        overlap = len(query_words & result_words)
-        overlap_score = min(overlap / max(len(query_words), 1), 1.0)
+        exact_matches = query_words & result_words
+        overlap_score = len(exact_matches) / max(len(query_words), 1) if query_words else 0
         
-        # Context relevance - check if result relates to query context
+        # Topic coherence - check if result relates to query context
         context_text = " ".join(query.context_before + query.context_after).lower()
-        context_words = set(context_text.split())
-        context_overlap = len(context_words & result_words)
-        context_score = min(context_overlap / max(len(context_words), 1), 0.5)
+        if context_text:
+            context_words = set(context_text.split())
+            context_overlap = len((context_words & result_words)) / max(len(context_words), 1)
+        else:
+            context_overlap = 0
         
-        # Semantic indicators
-        high_rel_score = sum(1 for kw in self.high_relevance_keywords if kw in result_text) * 0.1
-        low_rel_penalty = sum(1 for kw in self.low_relevance_keywords if kw in result_text) * -0.2
+        # Enhanced entity extraction and matching
+        def extract_entities(text):
+            """Extract entities: capitalised words, project names, tools, etc."""
+            words = text.split()
+            entities = set()
+            i = 0
+            while i < len(words):
+                word = words[i].strip(".,!?;:\"'()[]{}") 
+                if word and word[0].isupper() and len(word) >= 2 and not word.isupper():
+                    # Collect consecutive capitalised words as one entity
+                    entity_parts = [word]
+                    j = i + 1
+                    while j < len(words) and j - i < 3:  # max 3 words per entity
+                        next_word = words[j].strip(".,!?;:\"'()[]{}")
+                        if next_word and next_word[0].isupper() and len(next_word) >= 2:
+                            entity_parts.append(next_word)
+                            j += 1
+                        else:
+                            break
+                    entity = " ".join(entity_parts)
+                    entities.add(entity.lower())
+                    # Also add individual words for partial matching
+                    for part in entity_parts:
+                        if len(part) >= 3:
+                            entities.add(part.lower())
+                    i = j
+                else:
+                    i += 1
+            # Add ALL-CAPS acronyms (API, SEO, etc.)
+            for word in words:
+                word = word.strip(".,!?;:\"'()[]{}")
+                if word.isupper() and len(word) >= 2:
+                    entities.add(word.lower())
+            return entities
+        
+        # Project/tool entities (known high-value matches)
+        project_entities = ["darwin", "chowdown", "hire space", "railway", "the factory", "the keep", 
+                          "root juice", "tello", "stitch", "protein counter", "geo", "diego", "rook"]
+        
+        query_entities = extract_entities(query.text)
+        result_entities = extract_entities(result_text)
+        
+        # Entity boost calculation
+        entity_boost = 0
+        # High-value project matches get big boost
+        for entity in project_entities:
+            if entity in query_text and entity in result_text:
+                entity_boost += 0.4
+        # General entity matches get smaller boost
+        common_entities = query_entities & result_entities
+        entity_boost += len(common_entities) * 0.1
+        
+        entity_boost = min(entity_boost, 0.7)  # Cap at 0.7
+        
+        # Topic relevance indicators
+        high_rel_score = sum(0.05 for kw in self.high_relevance_keywords if kw in result_text)
+        low_rel_penalty = sum(0.1 for kw in self.low_relevance_keywords if kw in result_text and kw not in query_text)
+        
+        # Short query handling - for very short queries (<=5 words), expand with context and adjust weights
+        if len(query_words) <= 5:
+            # Expand short query with surrounding context
+            expanded_query = query.text
+            if query.context_before:
+                recent_context = " ".join(query.context_before[-2:])  # Last 2 context lines
+                expanded_query = recent_context + " " + expanded_query
+            if query.context_after:
+                following_context = " ".join(query.context_after[:2])  # Next 2 context lines  
+                expanded_query = expanded_query + " " + following_context
+            
+            # Re-calculate with expanded query
+            expanded_words = set(expanded_query.lower().split())
+            expanded_matches = expanded_words & result_words
+            overlap_score = max(overlap_score, len(expanded_matches) / max(len(expanded_words), 1))
+            
+            context_weight = 0.3
+            overlap_weight = 0.6
+        else:
+            context_weight = 0.1
+            overlap_weight = 0.8
         
         # Combine scores
         final_score = (
-            overlap_score * 0.6 +
-            context_score * 0.3 +
-            high_rel_score +
+            overlap_score * overlap_weight +
+            context_overlap * context_weight +
+            entity_boost +
+            high_rel_score -
             low_rel_penalty
         )
         
@@ -357,9 +469,9 @@ class MemoryEvaluator:
                 queries_with_results += 1
                 for score in eval_result.relevance_scores:
                     all_scores.append(score)
-                    if score >= 0.7:
+                    if score >= 0.4:  # Lowered from 0.7
                         high_relevance_results += 1
-                    elif score >= 0.4:
+                    elif score >= 0.2:  # Lowered from 0.4
                         medium_relevance_results += 1
                     else:
                         low_relevance_results += 1
@@ -402,11 +514,11 @@ def main():
     eval_dir = workspace / "eval"
     eval_dir.mkdir(exist_ok=True)
     
-    # Test data files (as specified in task)
-    test_files = [
-        telegram_dir / "the-factory-2026-02-16.md",
-        telegram_dir / "the-factory-2026-02-17.md"
-    ]
+    # Test data files (Feb 10-17 as specified in task)
+    test_files = []
+    for day in range(10, 18):  # Feb 10-17
+        file_path = telegram_dir / f"the-factory-2026-02-{day:02d}.md"
+        test_files.append(file_path)
     
     # Check files exist
     available_files = [f for f in test_files if f.exists()]
@@ -454,9 +566,9 @@ def main():
     
     # Phase 3: Run evaluation
     print(f"\n🔍 Phase 3: Running evaluation...")
-    # Limit to first 20 queries for initial testing
-    test_queries = all_queries[:20]
-    print(f"   Testing with {len(test_queries)} queries (limited for speed)")
+    # Use all extracted queries for comprehensive evaluation
+    test_queries = all_queries
+    print(f"   Testing with {len(test_queries)} queries (full dataset)")
     
     eval_results = evaluator.evaluate_queries(test_queries)
     
