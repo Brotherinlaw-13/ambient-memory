@@ -137,7 +137,11 @@ dmypy.json
 
 # ChromaDB
 .chroma/
+.chromadb/
 chroma.sqlite3
+
+# Evaluation data (may contain private chat content)
+eval/
 
 # IDE
 .vscode/
